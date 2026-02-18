@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plugin Design Report — Mockup Example</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #f8f9fc;
+    color: #1e293b;
+    line-height: 1.6;
+    padding: 32px 16px;
+  }
+
+  .container { max-width: 800px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .header { text-align: center; margin-bottom: 32px; }
+  .header-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #6366f1;
+    margin-bottom: 8px;
+  }
+  .header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 6px;
+  }
+  .header-sub {
+    font-size: 15px;
+    color: #64748b;
+  }
+
+  /* ── Score Dashboard ── */
+  .dashboard {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #3730a3 100%);
+    border-radius: 16px;
+    padding: 32px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 24px;
+    color: #fff;
+  }
+  .ring-wrap { flex-shrink: 0; }
+  .ring-wrap svg { display: block; }
+  .ring-bg { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 10; }
+  .ring-fg {
+    fill: none; stroke: #818cf8; stroke-width: 10; stroke-linecap: round;
+    transform: rotate(-90deg); transform-origin: 60px 60px;
+    animation: ring-draw 1.2s ease-out forwards;
+  }
+  @keyframes ring-draw { from { stroke-dashoffset: 314; } }
+  .ring-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px; font-weight: 700; fill: #fff;
+    text-anchor: middle; dominant-baseline: central;
+  }
+  .ring-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; fill: rgba(255,255,255,0.6);
+    text-anchor: middle; dominant-baseline: central;
+  }
+  .dash-info h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500; letter-spacing: 1.5px;
+    text-transform: uppercase; color: #a5b4fc; margin-bottom: 4px;
+  }
+  .dash-info .headline { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .dash-info .desc { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 14px; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-green { background: #10b981; }
+  .dot-amber { background: #f59e0b; }
+  .dot-red   { background: #ef4444; }
+
+  /* ── Card (generic) ── */
+  .card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  /* ── Commentary ── */
+  .commentary-section { margin-bottom: 20px; }
+  .commentary-section:last-child { margin-bottom: 0; }
+  .badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    margin-bottom: 8px;
+  }
+  .badge-green { color: #059669; border: 1px solid #059669; background: #ecfdf5; }
+  .badge-amber { color: #d97706; border: 1px solid #d97706; background: #fffbeb; }
+  .commentary-section p { font-size: 14px; color: #475569; line-height: 1.7; }
+  .bottom-line {
+    font-size: 15px; font-weight: 600; color: #6366f1;
+    display: flex; align-items: flex-start; gap: 8px;
+    padding-top: 4px;
+  }
+  .bottom-line span { flex-shrink: 0; }
+
+  /* ── Instruction Banner ── */
+  .banner {
+    background: #eef2ff;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 14px;
+    color: #4338ca;
+    line-height: 1.6;
+  }
+  .banner-icon { flex-shrink: 0; font-size: 18px; margin-top: 1px; }
+  .banner strong { font-weight: 600; }
+
+  /* ── Plugin Cards ── */
+  .plugin-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .plugin-card.expanded { border-color: #c7d2fe; }
+  .plugin-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .plugin-header:hover { background: #fafbff; }
+  .cat-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    border: 1px solid;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .cat-optimized { color: #059669; border-color: #10b981; background: #ecfdf5; }
+  .cat-identified { color: #d97706; border-color: #f59e0b; background: #fffbeb; }
+  .cat-untapped  { color: #dc2626; border-color: #ef4444; background: #fef2f2; }
+  .plugin-info { flex: 1; min-width: 0; }
+  .plugin-name { font-size: 17px; font-weight: 600; color: #1e293b; margin-bottom: 3px; }
+  .plugin-desc { font-size: 13px; color: #64748b; }
+  .tag-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .arch-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    padding: 2px 7px; border-radius: 6px;
+    background: #f1f5f9; color: #475569;
+    white-space: nowrap;
+  }
+  .comp-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 500;
+    padding: 2px 6px; border-radius: 4px;
+    background: #f8fafc; color: #94a3b8; border: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+  .design-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: #6366f1; background: transparent;
+    border: 1px solid #c7d2fe; border-radius: 8px;
+    padding: 6px 14px; cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .design-btn:hover { background: #eef2ff; }
+
+  /* ── Expanded Config Panel ── */
+  .config-panel {
+    display: none;
+    border-top: 1px solid #e2e8f0;
+    padding: 20px;
+    background: #fafbff;
+  }
+  .plugin-card.expanded .config-panel { display: block; }
+  .config-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: #6366f1; margin-bottom: 16px;
+  }
+  .q-group { margin-bottom: 14px; }
+  .q-group label {
+    display: block; font-size: 13px; font-weight: 500;
+    color: #334155; margin-bottom: 5px;
+  }
+  .q-group input {
+    width: 100%; padding: 8px 12px;
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    font-family: 'Inter', sans-serif; font-size: 13px;
+    color: #1e293b; background: #fff;
+    transition: border-color 0.15s;
+  }
+  .q-group input:focus { outline: none; border-color: #a5b4fc; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .q-group input::placeholder { color: #cbd5e1; }
+
+  .copy-row { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+  .copy-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: #fff; background: #6366f1;
+    border: none; border-radius: 8px;
+    padding: 10px 18px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { background: #4f46e5; }
+  .copy-btn.copied { background: #059669; }
+  .helper-text { font-size: 12px; color: #94a3b8; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    font-size: 13px; color: #94a3b8;
+    margin-top: 32px; padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <div class="header">
+    <div class="header-label">Plugin Design Report</div>
+    <h1>Your Plugin Design Report</h1>
+    <p class="header-sub">Based on your workflow patterns and integration analysis</p>
+  </div>
+
+  <!-- ═══════════════ SCORE DASHBOARD ═══════════════ -->
+  <div class="dashboard">
+    <div class="ring-wrap">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle class="ring-bg" cx="60" cy="60" r="50"/>
+        <!-- 1 of 7 optimized = 14% → dashoffset = 314 - (314 * 0.14) = 270 -->
+        <circle class="ring-fg" cx="60" cy="60" r="50"
+                stroke-dasharray="314" stroke-dashoffset="270"/>
+        <text class="ring-text" x="60" y="55">14</text>
+        <text class="ring-pct" x="60" y="74">percent</text>
+      </svg>
+    </div>
+    <div class="dash-info">
+      <h2>Plugin Optimization Score</h2>
+      <div class="headline">1 of 7 plugins optimized</div>
+      <div class="desc">You have significant automation potential. Most of your daily workflows are still manual or partially scripted — structured plugins could save 8–12 hours/week.</div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot dot-green"></div>1 Optimized</div>
+        <div class="legend-item"><div class="legend-dot dot-amber"></div>4 Identified</div>
+        <div class="legend-item"><div class="legend-dot dot-red"></div>2 Untapped</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ COMMENTARY ═══════════════ -->
+  <div class="card">
+    <div class="commentary-section">
+      <div class="badge badge-green">Your Strengths</div>
+      <p>Your Terraform IaC pipeline is well-structured with proper state management and CI integration. You've already automated infrastructure provisioning end-to-end, which puts you ahead of most DevOps teams. Your GitHub Actions workflows for build/test are solid and rarely need manual intervention.</p>
+    </div>
+    <div class="commentary-section">
+      <div class="badge badge-amber">Opportunities</div>
+      <p>Your biggest gap is incident response — you're manually copying Datadog alerts into Slack, triaging by hand, and writing postmortems from scratch each time. This alone costs ~4 hours/week. Additionally, your PR review process could be augmented with an automated first-pass reviewer that catches common issues before human review, saving ~2 hours/week across the team.</p>
+    </div>
+    <div class="commentary-section">
+      <div class="bottom-line">
+        <span>⚡</span>
+        <span>Build the Incident Response Orchestrator first — it sits at the intersection of your most painful manual workflow (alert triage) and your highest-frequency daily task (Slack-based incident coordination).</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ INSTRUCTION BANNER ═══════════════ -->
+  <div class="banner">
+    <span class="banner-icon">💡</span>
+    <span>Click <strong>Design →</strong> to answer quick questions about your requirements, then copy a ready-made prompt. Paste it into a new Claude chat to get a complete plugin blueprint with architecture, code structure, and deployment plan.</span>
+  </div>
+
+  <!-- ═══════════════ PLUGIN CARDS ═══════════════ -->
+
+  <!-- Card 1: Optimized -->
+  <div class="plugin-card" id="card-1">
+    <div class="plugin-header" onclick="toggle('card-1')">
+      <span class="cat-pill cat-optimized">Optimized</span>
+      <div class="plugin-info">
+        <div class="plugin-name">Terraform IaC Pipeline</div>
+        <div class="plugin-desc">End-to-end infrastructure provisioning with state management, plan/apply automation, and drift detection via GitHub Actions.</div>
+        <div class="tag-row">
+          <span class="arch-tag">CLI Tool</span>
+          <span class="comp-tag">Skills</span>
+          <span class="comp-tag">Hooks</span>
+        </div>
+      </div>
+      <button class="design-btn">Design →</button>
+    </div>
+    <div class="config-panel">
+      <div class="config-label">Plugin Configuration</div>
+      <div class="q-group">
+        <label>Which cloud providers do you target?</label>
+        <input type="text" placeholder="e.g., AWS, GCP, Azure">
+      </div>
+      <div class="q-group">
+        <label>How many environments do you manage?</label>
+        <input type="text" placeholder="e.g., dev, staging, prod">
+      </div>
+      <div class="q-group">
+        <label>Do you use Terraform Cloud or self-hosted state?</label>
+        <input type="text" placeholder="e.g., S3 backend, Terraform Cloud">
+      </div>
+      <div class="copy-row">
+        <button class="copy-btn" onclick="copyPrompt(this, 'Terraform IaC Pipeline')">📋 Copy Blueprint Prompt</button>
+        <span class="helper-text">Works without answers too — but answers produce a more targeted blueprint</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Identified -->
+  <div class="plugin-card" id="card-2">
+    <div class="plugin-header" onclick="toggle('card-2')">
+      <span class="cat-pill cat-identified">Identified</span>
+      <div class="plugin-info">
+        <div class="plugin-name">Incident Response Orchestrator</div>
+        <div class="plugin-desc">Automatically ingest Datadog alerts, create Slack incident channels, assign on-call, track resolution, and generate postmortem drafts.</div>
+        <div class="tag-row">
+          <span class="arch-tag">Claude Code Plugin</span>
+          <span class="comp-tag">Skills</span>
+          <span class="comp-tag">Commands</span>
+          <span class="comp-tag">Hooks</span>
+          <span class="comp-tag">MCP</span>
+        </div>
+      </div>
+      <button class="design-btn">Design →</button>
+    </div>
+    <div class="config-panel">
+      <div class="config-label">Plugin Configuration</div>
+      <div class="q-group">
+        <label>Which monitoring tools send alerts? (Datadog, PagerDuty, etc.)</label>
+        <input type="text" placeholder="e.g., Datadog, PagerDuty">
+      </div>
+      <div class="q-group">
+        <label>What's your current on-call rotation tool?</label>
+        <input type="text" placeholder="e.g., PagerDuty, OpsGenie, manual">
+      </div>
+      <div class="q-group">
+        <label>Where should postmortems be stored?</label>
+        <input type="text" placeholder="e.g., Notion, Confluence, GitHub Wiki">
+      </div>
+      <div class="q-group">
+        <label>Which plugin components do you need?</label>
+        <input type="text" placeholder="e.g., skills, commands, hooks, MCP servers">
+      </div>
+      <div class="copy-row">
+        <button class="copy-btn" onclick="copyPrompt(this, 'Incident Response Orchestrator')">📋 Copy Blueprint Prompt</button>
+        <span class="helper-text">Works without answers too — but answers produce a more targeted blueprint</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Identified -->
+  <div class="plugin-card" id="card-3">
+    <div class="plugin-header" onclick="toggle('card-3')">
+      <span class="cat-pill cat-identified">Identified</span>
+      <div class="plugin-info">
+        <div class="plugin-name">PR Review Copilot</div>
+        <div class="plugin-desc">Automated first-pass code review that checks for security issues, style violations, missing tests, and architectural anti-patterns before human review.</div>
+        <div class="tag-row">
+          <span class="arch-tag">Claude Code Plugin</span>
+          <span class="comp-tag">Skills</span>
+          <span class="comp-tag">Agents</span>
+          <span class="comp-tag">Hooks</span>
+        </div>
+      </div>
+      <button class="design-btn">Design →</button>
+    </div>
+    <div class="config-panel">
+      <div class="config-label">Plugin Configuration</div>
+      <div class="q-group">
+        <label>What languages does your team primarily write?</label>
+        <input type="text" placeholder="e.g., TypeScript, Python, Go">
+      </div>
+      <div class="q-group">
+        <label>Any specific linting or style rules to enforce?</label>
+        <input type="text" placeholder="e.g., ESLint config, Black, gofmt">
+      </div>
+      <div class="q-group">
+        <label>Should it auto-comment on PRs or generate a summary?</label>
+        <input type="text" placeholder="e.g., inline comments, summary report, both">
+      </div>
+      <div class="copy-row">
+        <button class="copy-btn" onclick="copyPrompt(this, 'PR Review Copilot')">📋 Copy Blueprint Prompt</button>
+        <span class="helper-text">Works without answers too — but answers produce a more targeted blueprint</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4: Identified -->
+  <div class="plugin-card" id="card-4">
+    <div class="plugin-header" onclick="toggle('card-4')">
+      <span class="cat-pill cat-identified">Identified</span>
+      <div class="plugin-info">
+        <div class="plugin-name">Deploy Pipeline Status Hub</div>
+        <div class="plugin-desc">Aggregate deployment status across GitHub Actions, ArgoCD, and AWS CodePipeline into a single Slack-queryable dashboard with rollback commands.</div>
+        <div class="tag-row">
+          <span class="arch-tag">Webhook Pipeline</span>
+          <span class="comp-tag">Skills</span>
+          <span class="comp-tag">Commands</span>
+          <span class="comp-tag">MCP</span>
+        </div>
+      </div>
+      <button class="design-btn">Design →</button>
+    </div>
+    <div class="config-panel">
+      <div class="config-label">Plugin Configuration</div>
+      <div class="q-group">
+        <label>Which CI/CD tools do you use?</label>
+        <input type="text" placeholder="e.g., GitHub Actions, ArgoCD, Jenkins">
+      </div>
+      <div class="q-group">
+        <label>How many services/repos do you deploy regularly?</label>
+        <input type="text" placeholder="e.g., 5 microservices, 1 monolith">
+      </div>
+      <div class="q-group">
+        <label>Where should deployment status be visible?</label>
+        <input type="text" placeholder="e.g., Slack channel, web dashboard, both">
+      </div>
+      <div class="copy-row">
+        <button class="copy-btn" onclick="copyPrompt(this, 'Deploy Pipeline Status Hub')">📋 Copy Blueprint Prompt</button>
+        <span class="helper-text">Works without answers too — but answers produce a more targeted blueprint</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 5: Identified -->
+  <div class="plugin-card" id="card-5">
+    <div class="plugin-header" onclick="toggle('card-5')">
+      <span class="cat-pill cat-identified">Identified</span>
+      <div class="plugin-info">
+        <div class="plugin-name">Log Analyzer &amp; Pattern Detector</div>
+        <div class="plugin-desc">AI-powered log analysis that detects anomalies, correlates errors across services, and suggests root causes from CloudWatch and Datadog logs.</div>
+        <div class="tag-row">
+          <span class="arch-tag">AI/LLM Plugin</span>
+          <span class="comp-tag">Skills</span>
+          <span class="comp-tag">Commands</span>
+          <span class="comp-tag">MCP</span>
+        </div>
+      </div>
+      <button class="design-btn">Design →</button>
+    </div>
+    <div class="config-panel">
+      <div class="config-label">Plugin Configuration</div>
+      <div class="q-group">
+        <label>Where are your logs stored?</label>
+        <input type="text" placeholder="e.g., CloudWatch, Datadog, ELK Stack">
+      </div>
+      <div class="q-group">
+        <label>What log volume do you process daily?</label>
+        <input type="text" placeholder="e.g., ~50GB/day, ~10M events/day">
+      </div>
+      <div class="q-group">
+        <label>Any preferred AI model provider for analysis?</label>
+        <input type="text" placeholder="e.g., Anthropic Claude, OpenAI, local model">
+      </div>
+      <div class="copy-row">
+        <button class="copy-btn" onclick="copyPrompt(this, 'Log Analyzer & Pattern Detector')">📋 Copy Blueprint Prompt</button>
+        <span class="helper-text">Works without answers too — but answers produce a more targeted blueprint</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 6: Untapped -->
+  <div class="plugin-card" id="card-6">
+    <div class="plugin-header" onclick="toggle('card-6')">
+      <span class="cat-pill cat-untapped">Untapped</span>
+      <div class="plugin-info">
+        <div class="plugin-name">Cost Optimization Scanner</div>
+        <div class="plugin-desc">Scheduled AWS cost analysis that identifies unused resources, rightsizing opportunities, and RI/Savings Plan recommendations with weekly Slack reports.</div>
+        <div class="tag-row">
+          <span class="arch-tag">Scheduled Automation</span>
+          <span class="comp-tag">Skills</span>
+          <span class="comp-tag">Hooks</span>
+          <span class="comp-tag">MCP</span>
+        </div>
+      </div>
+      <button class="design-btn">Design →</button>
+    </div>
+    <div class="config-panel">
+      <div class="config-label">Plugin Configuration</div>
+      <div class="q-group">
+        <label>Which cloud provider accounts should be scanned?</label>
+        <input type="text" placeholder="e.g., 3 AWS accounts (dev, staging, prod)">
+      </div>
+      <div class="q-group">
+        <label>What's your monthly cloud spend ballpark?</label>
+        <input type="text" placeholder="e.g., $15k/month, $50k/month">
+      </div>
+      <div class="q-group">
+        <label>How often should the scan run?</label>
+        <input type="text" placeholder="e.g., weekly, daily, on-demand">
+      </div>
+      <div class="copy-row">
+        <button class="copy-btn" onclick="copyPrompt(this, 'Cost Optimization Scanner')">📋 Copy Blueprint Prompt</button>
+        <span class="helper-text">Works without answers too — but answers produce a more targeted blueprint</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 7: Untapped -->
+  <div class="plugin-card" id="card-7">
+    <div class="plugin-header" onclick="toggle('card-7')">
+      <span class="cat-pill cat-untapped">Untapped</span>
+      <div class="plugin-info">
+        <div class="plugin-name">Runbook Auto-Generator</div>
+        <div class="plugin-desc">Automatically generate and maintain operational runbooks from your infrastructure code, alert definitions, and incident history. Keep docs in sync with reality.</div>
+        <div class="tag-row">
+          <span class="arch-tag">Claude Code Plugin</span>
+          <span class="comp-tag">Skills</span>
+          <span class="comp-tag">Commands</span>
+          <span class="comp-tag">Agents</span>
+          <span class="comp-tag">Hooks</span>
+        </div>
+      </div>
+      <button class="design-btn">Design →</button>
+    </div>
+    <div class="config-panel">
+      <div class="config-label">Plugin Configuration</div>
+      <div class="q-group">
+        <label>Where do you store current runbooks?</label>
+        <input type="text" placeholder="e.g., Notion, Confluence, GitHub repo">
+      </div>
+      <div class="q-group">
+        <label>What IaC tools define your infrastructure?</label>
+        <input type="text" placeholder="e.g., Terraform, Pulumi, CloudFormation">
+      </div>
+      <div class="q-group">
+        <label>Should runbooks auto-update when infra code changes?</label>
+        <input type="text" placeholder="e.g., yes via PostToolUse hook, manual trigger only">
+      </div>
+      <div class="q-group">
+        <label>Which plugin components do you need?</label>
+        <input type="text" placeholder="e.g., skills, commands, agents, hooks">
+      </div>
+      <div class="copy-row">
+        <button class="copy-btn" onclick="copyPrompt(this, 'Runbook Auto-Generator')">📋 Copy Blueprint Prompt</button>
+        <span class="helper-text">Works without answers too — but answers produce a more targeted blueprint</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ FOOTER ═══════════════ -->
+  <div class="footer">
+    Plugins are ranked by estimated weekly impact. Build the top-scoring ones first for maximum ROI.
+  </div>
+
+</div>
+
+<script>
+  function toggle(id) {
+    const card = document.getElementById(id);
+    const wasExpanded = card.classList.contains('expanded');
+
+    // Close all cards
+    document.querySelectorAll('.plugin-card').forEach(c => c.classList.remove('expanded'));
+
+    // Open this one if it wasn't already open
+    if (!wasExpanded) card.classList.add('expanded');
+  }
+
+  function copyPrompt(btn, pluginName) {
+    // Gather answers from the card
+    const panel = btn.closest('.config-panel');
+    const inputs = panel.querySelectorAll('.q-group');
+    let requirements = '';
+    inputs.forEach(g => {
+      const label = g.querySelector('label').textContent;
+      const value = g.querySelector('input').value || '[Not specified — use your best judgment]';
+      requirements += `- ${label} ${value}\n`;
+    });
+
+    const prompt = `Design and build me a complete Claude Code plugin called "${pluginName}".
+
+## Overview
+${panel.closest('.plugin-card').querySelector('.plugin-desc').textContent}
+
+## Architecture Type
+${panel.closest('.plugin-card').querySelector('.arch-tag').textContent}
+
+## Plugin Components Needed
+${Array.from(panel.closest('.plugin-card').querySelectorAll('.comp-tag')).map(t => '- ' + t.textContent).join('\n')}
+
+## My Requirements
+${requirements}
+## What I Need You to Deliver
+
+### 1. Plugin Manifest
+Create \`.claude-plugin/plugin.json\` with:
+- name (kebab-case, used as namespace for /plugin-name:skill-name)
+- version (semantic versioning: MAJOR.MINOR.PATCH, start at 1.0.0)
+- description
+- author (name, email, url)
+- keywords (for marketplace discovery)
+
+### 2. Directory Structure
+Follow the official Claude Code plugin layout:
+- Only plugin.json inside .claude-plugin/
+- All other dirs (skills/, commands/, agents/, hooks/, scripts/) at root
+- Use \${CLAUDE_PLUGIN_ROOT} for internal paths
+- All paths relative starting with ./
+
+### 3. Architecture Overview
+- System design with component interactions
+- Data flow and external dependencies
+
+### 4. Plugin Components
+Implement all needed components:
+- Skills: skills/name/SKILL.md with YAML frontmatter (name + description with triggers)
+- Commands: commands/*.md with description frontmatter
+- Agents: agents/*.md with name + description frontmatter
+- Hooks: hooks/hooks.json with case-sensitive event names (PostToolUse, SessionStart, etc.)
+- MCP: .mcp.json with \${CLAUDE_PLUGIN_ROOT} paths
+- Scripts: Make executable (chmod +x) with shebang lines
+
+### 5. Core Implementation
+- Full working code for all modules
+- Use \${CLAUDE_PLUGIN_ROOT} for internal paths
+
+### 6. Testing
+- Test locally: claude --plugin-dir ./plugin-name
+- Debug: claude --debug
+- Verify commands in /help, agents in /agents, hooks fire on events
+
+### 7. Versioning & Distribution
+- Semantic versioning in plugin.json
+- Marketplace packaging for claude plugin install
+- Installation scopes: user, project, local
+
+### 8. Build Order
+- Step-by-step implementation sequence with checkpoints
+
+Build this as a production-ready Claude Code plugin I can use immediately.`;
+
+    navigator.clipboard.writeText(prompt).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied! Paste into Claude →';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 3000);
+    }).catch(() => {
+      // Fallback
+      btn.textContent = '⚠ Copy failed — select prompt manually';
+      setTimeout(() => { btn.textContent = '📋 Copy Blueprint Prompt'; }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
