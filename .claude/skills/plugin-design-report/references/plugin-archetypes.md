@@ -88,6 +88,38 @@ Use these archetypes to classify plugin opportunities and tailor qualifying ques
 **Key questions:** Schedule frequency? Data sources? Output/notification method? Failure handling?
 **Examples:** Weekly report emailer, stale PR notifier, database backup verifier, uptime checker
 
+### Claude Code Plugin
+**What it is:** A self-contained extension package for Claude Code that adds skills, commands, agents, hooks, MCP servers, or LSP servers.
+**Typical stack:** Markdown (SKILL.md, commands, agents), JSON (plugin.json, hooks.json, .mcp.json, .lsp.json), Python/Bash scripts
+**Best for:** Extending Claude Code with specialized capabilities, sharing workflows across teams, automating Claude's behavior via hooks
+**Key questions:** Which components needed (skills/commands/agents/hooks/MCP/LSP)? User-invoked or agent-invoked? Team or personal use? Any external tool integrations?
+**Structure:**
+```
+plugin-name/
+├── .claude-plugin/plugin.json    # Manifest (name, version, description)
+├── commands/                      # User-invoked /slash commands
+├── agents/                        # Specialized subagents
+├── skills/name/SKILL.md           # Agent-invoked skills
+├── hooks/hooks.json               # Event handlers
+├── .mcp.json                      # MCP server configs
+├── .lsp.json                      # LSP server configs
+└── scripts/                       # Utility scripts
+```
+**Key rules:**
+- Only `plugin.json` inside `.claude-plugin/` — everything else at root
+- Use `${CLAUDE_PLUGIN_ROOT}` for internal paths
+- Skills namespaced as `/plugin-name:skill-name`
+- Semantic versioning required
+- Test with `claude --plugin-dir ./plugin-name`
+- Distribute via plugin marketplaces
+**Examples:** Code review plugin, deployment automation, brand content generator, documentation builder, custom linting pipeline
+
+**Available hook events:** PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, UserPromptSubmit, Notification, Stop, SubagentStart, SubagentStop, SessionStart, SessionEnd, TeammateIdle, TaskCompleted, PreCompact
+
+**Hook types:** command (shell exec), prompt (LLM evaluation), agent (agentic verifier with tools)
+
+**Installation scopes:** user (personal), project (shared via git), local (gitignored), managed (read-only)
+
 ## Choosing the Right Archetype
 
 | Signal in User's Workflow | Suggested Archetype |
@@ -104,3 +136,8 @@ Use these archetypes to classify plugin opportunities and tailor qualifying ques
 | "I pull this report every week" | Data Pipeline |
 | "I need AI to process..." | AI/LLM Plugin |
 | "This should just happen automatically" | Scheduled Automation |
+| "I want Claude to do X automatically" | Claude Code Plugin |
+| "I need a custom slash command for..." | Claude Code Plugin |
+| "When Claude edits files I want it to..." | Claude Code Plugin (Hooks) |
+| "I want Claude to connect to my API" | Claude Code Plugin (MCP) |
+| "I want to share my Claude workflow with..." | Claude Code Plugin |
