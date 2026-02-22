@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamous — Plugin Design Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f8f9fc;
+      color: #1e293b;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    /* ── Design Tokens ── */
+    const T = {
+      bg: '#f8f9fc',
+      card: '#ffffff',
+      cardBorder: '#e2e8f0',
+      primary: '#6366f1',
+      primaryLight: '#eef2ff',
+      textDark: '#1e293b',
+      textMuted: '#64748b',
+      radius: '12px',
+      radiusPill: '9999px',
+      shadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+      shadowLg: '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
+    };
+
+    const CAT = {
+      optimized:  { label: 'Optimized',  text: '#059669', dot: '#10b981' },
+      identified: { label: 'Identified', text: '#d97706', dot: '#f59e0b' },
+      untapped:   { label: 'Untapped',   text: '#dc2626', dot: '#ef4444' },
+    };
+
+    /* ── Plugin Data ── */
+    const PLUGINS = [
+      {
+        id: 'branded-content',
+        name: 'Branded Content Generator',
+        description: 'Your PPTX Generator, Brand Voice Generator, and Remotion Video Creator work together to produce on-brand content across slides, carousels, and programmatic video. Dynamous brand system (blue #3B82F6, dark aesthetic, Inter + JetBrains Mono) is configured and enforced.',
+        category: 'optimized',
+        architectureType: 'Claude Code Plugin',
+        components: ['skills', 'commands'],
+        questions: [
+          { id: 'q1', text: 'What new content formats do you want to support beyond PPTX, carousels, and Remotion video?', answer: '' },
+          { id: 'q2', text: 'Do you need brand variants (e.g., a light-mode Dynamous brand for certain contexts)?', answer: '' },
+          { id: 'q3', text: 'Should brand assets be validated automatically on every content generation?', answer: '' },
+        ],
+      },
+      {
+        id: 'workflow-builder',
+        name: 'Developer Workflow Builder',
+        description: 'Your Skill Creator and SOP Creator give you a structured system for defining new Claude Code skills and documenting operational procedures. Combined with the Plugin Design Report, you have a complete loop: identify → design → build → document.',
+        category: 'optimized',
+        architectureType: 'Claude Code Plugin',
+        components: ['skills', 'commands', 'agents'],
+        questions: [
+          { id: 'q1', text: 'Do you want the Skill Creator to auto-generate test harnesses for new skills?', answer: '' },
+          { id: 'q2', text: 'Should SOPs auto-link to the skills they document?', answer: '' },
+          { id: 'q3', text: 'Do you need version tracking for skills (changelog, diff between versions)?', answer: '' },
+        ],
+      },
+      {
+        id: 'content-pipeline',
+        name: 'Content Pipeline Orchestrator',
+        description: 'Coordinates your entire content workflow as a single pipeline: ideation → outline → script → slides (PPTX) → video (Remotion) → publish → distribute. Tracks each piece through stages, hands off between existing skills, and manages publishing to YouTube + LinkedIn.',
+        category: 'identified',
+        architectureType: 'Claude Code Plugin',
+        components: ['skills', 'commands', 'agents', 'hooks'],
+        questions: [
+          { id: 'q1', text: 'How many content pieces do you produce per week across all formats?', answer: '' },
+          { id: 'q2', text: 'Which publishing platforms should this integrate with? (YouTube, LinkedIn, Twitter/X, blog, etc.)', answer: '' },
+          { id: 'q3', text: 'Do you want AI-generated content briefs from trending topics, or manual ideation only?', answer: '' },
+          { id: 'q4', text: 'Should each pipeline stage auto-trigger the next, or require manual approval between steps?', answer: '' },
+        ],
+      },
+      {
+        id: 'agent-scaffolder',
+        name: 'Agent Project Scaffolder',
+        description: 'One command to scaffold complete AI agent projects for clients. Generates project structure, boilerplate, context engineering setup, CLAUDE.md, testing harness, and deployment config — all templated from your proven patterns across hundreds of agent builds.',
+        category: 'identified',
+        architectureType: 'Claude Code Plugin',
+        components: ['skills', 'commands', 'agents'],
+        questions: [
+          { id: 'q1', text: 'What are your 3 most common agent project types? (e.g., RAG chatbot, workflow automation, data pipeline agent)', answer: '' },
+          { id: 'q2', text: 'Which tech stacks do you typically scaffold? (Python/LangChain, TypeScript/Vercel AI SDK, etc.)', answer: '' },
+          { id: 'q3', text: 'Should scaffolded projects include pre-configured CI/CD and deployment templates?', answer: '' },
+          { id: 'q4', text: 'Do you want client-specific branding/config baked into each scaffold?', answer: '' },
+        ],
+      },
+      {
+        id: 'context-vault',
+        name: 'Context Engineering Vault',
+        description: 'A searchable, categorized library of context engineering patterns, anti-patterns, and real-world examples — drawn from your experience building hundreds of agents. Pull proven patterns during agent builds, or reference specific techniques during content creation.',
+        category: 'identified',
+        architectureType: 'Claude Code Plugin',
+        components: ['skills', 'commands'],
+        questions: [
+          { id: 'q1', text: 'How many context engineering patterns do you want to seed the vault with initially?', answer: '' },
+          { id: 'q2', text: 'Should patterns be tagged by use case (RAG, tool use, multi-agent) or by technique (few-shot, chain-of-thought)?', answer: '' },
+          { id: 'q3', text: 'Do you want the vault to auto-suggest relevant patterns based on the current project CLAUDE.md?', answer: '' },
+        ],
+      },
+      {
+        id: 'youtube-engine',
+        name: 'YouTube Growth Engine',
+        description: 'Analyzes your YouTube channel performance, identifies trending AI topics worth covering, generates SEO-optimized titles/descriptions/tags, and suggests optimal publishing times. Connects to YouTube Data API for real metrics, not guesswork.',
+        category: 'untapped',
+        architectureType: 'API Integration',
+        components: ['skills', 'commands', 'mcp'],
+        questions: [
+          { id: 'q1', text: 'Do you have YouTube Data API access configured, or do you need help setting that up?', answer: '' },
+          { id: 'q2', text: 'Which competitor channels should this track for trending topic detection?', answer: '' },
+          { id: 'q3', text: 'Do you want thumbnail design suggestions or just title/description optimization?', answer: '' },
+          { id: 'q4', text: 'Should this generate weekly content calendars based on trend analysis?', answer: '' },
+        ],
+      },
+      {
+        id: 'community-automator',
+        name: 'Community Engagement Automator',
+        description: 'Tracks engagement across your AI practitioner community — identifies power users, flags unanswered questions, auto-drafts responses to FAQs, and generates weekly community health reports. Reduces management time while keeping engagement high.',
+        category: 'untapped',
+        architectureType: 'Claude Code Plugin',
+        components: ['skills', 'commands', 'agents', 'mcp'],
+        questions: [
+          { id: 'q1', text: 'Which platform hosts your community? (Discord, Slack, Circle, Skool, etc.)', answer: '' },
+          { id: 'q2', text: 'What are the top 5 FAQ topics your community asks about repeatedly?', answer: '' },
+          { id: 'q3', text: 'Do you want automated welcome sequences for new members?', answer: '' },
+          { id: 'q4', text: 'Should this generate weekly digest posts summarizing community activity?', answer: '' },
+        ],
+      },
+      {
+        id: 'client-pipeline',
+        name: 'Client Delivery Pipeline',
+        description: 'End-to-end workflow for agent-building client engagements: requirements intake → scoped proposal generation → milestone tracking → automated testing → handoff documentation → post-delivery support templates. Turns your client delivery process into a repeatable system.',
+        category: 'untapped',
+        architectureType: 'Claude Code Plugin',
+        components: ['skills', 'commands', 'agents', 'hooks'],
+        questions: [
+          { id: 'q1', text: 'How many client agent projects do you typically run concurrently?', answer: '' },
+          { id: 'q2', text: 'Do you use a project management tool for client work? (Linear, Notion, etc.)', answer: '' },
+          { id: 'q3', text: 'Should proposals and handoff docs auto-apply Dynamous branding?', answer: '' },
+          { id: 'q4', text: 'Do you need time tracking or invoicing integration?', answer: '' },
+        ],
+      },
+    ];
+
+    const counts = {
+      optimized:  PLUGINS.filter(p => p.category === 'optimized').length,
+      identified: PLUGINS.filter(p => p.category === 'identified').length,
+      untapped:   PLUGINS.filter(p => p.category === 'untapped').length,
+    };
+    const total = PLUGINS.length;
+    const score = Math.round((counts.optimized / total) * 100);
+
+    /* ── Build Prompt Generator ── */
+    function buildPrompt(plugin) {
+      const compChecklist = ['skills','commands','agents','hooks','mcp','lsp'].map(c => {
+        const has = plugin.components.includes(c);
+        const labels = {
+          skills: 'Skills (skills/name/SKILL.md)',
+          commands: 'Commands (commands/*.md)',
+          agents: 'Agents (agents/*.md)',
+          hooks: 'Hooks (hooks/hooks.json)',
+          mcp: 'MCP Servers (.mcp.json)',
+          lsp: 'LSP Servers (.lsp.json)',
+        };
+        return `- [${has ? 'x' : ' '}] ${labels[c]}`;
+      }).join('\n');
+
+      const reqs = plugin.questions.map(q =>
+        `- ${q.text}: ${q.answer.trim() || '[Not specified — use your best judgment]'}`
+      ).join('\n');
+
+      return `Design and build me a complete Claude Code plugin called "${plugin.name}".
+
+## Overview
+${plugin.description}
+
+## Architecture Type
+${plugin.architectureType}
+
+## Plugin Components Needed
+${compChecklist}
+
+## My Requirements
+${reqs}
+
+## What I Need You to Deliver
+
+### 1. Plugin Manifest
+Create \`.claude-plugin/plugin.json\` with:
+- name (kebab-case, used as namespace for /plugin-name:skill-name)
+- version (semantic versioning: MAJOR.MINOR.PATCH, start at 1.0.0)
+- description
+- author: Cole Medin / Dynamous
+- keywords (for marketplace discovery)
+
+### 2. Directory Structure
+Create the complete plugin directory tree following this layout:
+\`\`\`
+${plugin.id}/
+├── .claude-plugin/
+│   └── plugin.json
+${plugin.components.includes('commands') ? '├── commands/\n' : ''}${plugin.components.includes('agents') ? '├── agents/\n' : ''}${plugin.components.includes('skills') ? '├── skills/\n│   └── [skill-name]/\n│       ├── SKILL.md\n│       ├── scripts/\n│       └── references/\n' : ''}${plugin.components.includes('hooks') ? '├── hooks/\n│   └── hooks.json\n' : ''}${plugin.components.includes('mcp') ? '├── .mcp.json\n' : ''}${plugin.components.includes('lsp') ? '├── .lsp.json\n' : ''}└── scripts/
+\`\`\`
+IMPORTANT: Only plugin.json goes inside .claude-plugin/. All other dirs at root.
+
+### 3. Architecture Overview
+- System design diagram (text/ASCII showing component interactions)
+- Data flow between components
+- External service dependencies
+- Key architectural decisions and trade-offs
+
+### 4. Tech Stack
+- Language and runtime with version
+- Framework(s) with justification
+- Database (if applicable) with schema rationale
+- Key libraries and dependencies
+
+### 5. Plugin Components (implement all that apply)
+
+#### Skills (skills/name/SKILL.md)
+- YAML frontmatter with \`name\` and \`description\` (description must include trigger conditions)
+- Markdown body with instructions (keep under 500 lines)
+- Progressive disclosure: metadata → body → references
+- Reference files in skills/name/references/ for detailed content
+
+#### Commands (commands/*.md)
+- YAML frontmatter with \`description\`
+- Use \`$ARGUMENTS\` placeholder for user input
+
+#### Agents (agents/*.md)
+- YAML frontmatter with \`name\` and \`description\`
+- System prompt body describing role, expertise, and behavior
+
+#### Hooks (hooks/hooks.json)
+- Use correct case-sensitive event names
+- Use \${CLAUDE_PLUGIN_ROOT} for all script paths
+- Make all scripts executable with proper shebang lines
+
+### 6. Core Implementation
+- Implement main modules with full, working code
+- Use \${CLAUDE_PLUGIN_ROOT} for all internal path references
+- All paths must be relative starting with ./
+
+### 7. Error Handling & Logging
+- Error taxonomy (expected vs unexpected)
+- Graceful degradation strategy
+
+### 8. Testing Strategy
+- Test locally with: claude --plugin-dir ./${plugin.id}
+- Debug with: claude --debug
+- Verify: commands appear in /help, agents in /agents, hooks fire on events
+
+### 9. Versioning & Distribution
+- Semantic versioning in plugin.json
+- Installation scopes: user (default), project (shared via git), local (gitignored)
+- CHANGELOG.md for version history
+
+### 10. Build Order
+- Step-by-step implementation sequence
+- Which components to build and test first
+- Common pitfalls to avoid:
+  - Don't put components inside .claude-plugin/
+  - Don't use absolute paths
+  - Don't forget chmod +x on hook scripts
+
+Build this as a production-ready Claude Code plugin I can start using immediately. Prioritize working components over documentation — I want to ship this.`;
+    }
+
+    /* ── Components ── */
+
+    function ScoreRing({ pct }) {
+      const r = 52, c = 2 * Math.PI * r;
+      const offset = c - (pct / 100) * c;
+      return (
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
+          <circle
+            cx="60" cy="60" r={r} fill="none"
+            stroke="#a5b4fc" strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={c} strokeDashoffset={offset}
+            transform="rotate(-90 60 60)"
+            style={{ transition: 'stroke-dashoffset 1.2s ease-out' }}
+          />
+          <text x="60" y="56" textAnchor="middle" fill="#fff" fontSize="28" fontWeight="700" fontFamily="Inter">{pct}</text>
+          <text x="60" y="74" textAnchor="middle" fill="rgba(255,255,255,0.7)" fontSize="12" fontFamily="Inter">percent</text>
+        </svg>
+      );
+    }
+
+    function CategoryDot({ category }) {
+      return <span style={{ display:'inline-block', width:8, height:8, borderRadius:'50%', backgroundColor: CAT[category].dot, marginRight:6 }} />;
+    }
+
+    function Badge({ category }) {
+      const c = CAT[category];
+      return (
+        <span style={{
+          display:'inline-flex', alignItems:'center', gap:4,
+          fontSize:11, fontWeight:600, fontFamily:"'JetBrains Mono', monospace",
+          color: c.text, border:`1px solid ${c.dot}`, borderRadius:T.radiusPill,
+          padding:'2px 10px', textTransform:'uppercase', letterSpacing:'0.5px',
+        }}>
+          <CategoryDot category={category} />
+          {c.label}
+        </span>
+      );
+    }
+
+    function ArchBadge({ type }) {
+      return (
+        <span style={{
+          fontSize:11, fontWeight:500, color:T.textMuted,
+          border:`1px solid ${T.cardBorder}`, borderRadius:T.radiusPill,
+          padding:'2px 10px', fontFamily:"'JetBrains Mono', monospace",
+        }}>{type}</span>
+      );
+    }
+
+    function CompBadge({ name }) {
+      return (
+        <span style={{
+          fontSize:10, fontWeight:500, color:'#94a3b8',
+          background:'#f1f5f9', borderRadius:T.radiusPill,
+          padding:'2px 8px', fontFamily:"'JetBrains Mono', monospace",
+          textTransform:'uppercase', letterSpacing:'0.3px',
+        }}>{name}</span>
+      );
+    }
+
+    function PluginCard({ plugin, isExpanded, onToggle }) {
+      const [answers, setAnswers] = useState(() => {
+        const a = {};
+        plugin.questions.forEach(q => { a[q.id] = ''; });
+        return a;
+      });
+      const [copied, setCopied] = useState(false);
+
+      const handleCopy = () => {
+        const p = { ...plugin, questions: plugin.questions.map(q => ({ ...q, answer: answers[q.id] || '' })) };
+        navigator.clipboard.writeText(buildPrompt(p)).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 3000);
+        });
+      };
+
+      return (
+        <div style={{
+          background: T.card, border:`1px solid ${T.cardBorder}`, borderRadius: T.radius,
+          boxShadow: isExpanded ? T.shadowLg : T.shadow, transition:'box-shadow 0.2s',
+          overflow:'hidden',
+        }}>
+          {/* Header row */}
+          <div style={{ display:'flex', alignItems:'center', gap:12, padding:'20px 24px', flexWrap:'wrap' }}>
+            <Badge category={plugin.category} />
+            <div style={{ flex:1, minWidth:200 }}>
+              <div style={{ fontWeight:700, fontSize:17, color:T.textDark }}>{plugin.name}</div>
+              <div style={{ fontSize:14, color:T.textMuted, marginTop:2 }}>{plugin.description}</div>
+              <div style={{ display:'flex', gap:6, marginTop:8, flexWrap:'wrap', alignItems:'center' }}>
+                <ArchBadge type={plugin.architectureType} />
+                {plugin.components.map(c => <CompBadge key={c} name={c} />)}
+              </div>
+            </div>
+            <button
+              onClick={onToggle}
+              style={{
+                background: isExpanded ? '#f1f5f9' : T.primary, color: isExpanded ? T.textDark : '#fff',
+                border:'none', borderRadius:T.radiusPill, padding:'8px 20px',
+                fontWeight:600, fontSize:14, cursor:'pointer', fontFamily:'Inter',
+                transition:'all 0.2s', whiteSpace:'nowrap',
+              }}
+            >
+              {isExpanded ? 'Close' : 'Design →'}
+            </button>
+          </div>
+
+          {/* Expanded panel */}
+          {isExpanded && (
+            <div style={{ borderTop:`1px solid ${T.cardBorder}`, padding:'24px', background:'#fafbfe' }}>
+              <div className="mono" style={{
+                fontSize:11, fontWeight:600, color:T.primary,
+                textTransform:'uppercase', letterSpacing:'1px', marginBottom:16,
+              }}>
+                Plugin Configuration
+              </div>
+
+              {plugin.questions.map(q => (
+                <div key={q.id} style={{ marginBottom:14 }}>
+                  <label style={{ display:'block', fontSize:13, fontWeight:500, color:T.textDark, marginBottom:4 }}>{q.text}</label>
+                  <input
+                    type="text"
+                    value={answers[q.id]}
+                    onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                    placeholder="Type your answer..."
+                    style={{
+                      width:'100%', padding:'10px 14px', border:`1px solid ${T.cardBorder}`,
+                      borderRadius:'8px', fontSize:14, fontFamily:'Inter', color:T.textDark,
+                      outline:'none', transition:'border-color 0.2s',
+                    }}
+                    onFocus={e => e.target.style.borderColor = T.primary}
+                    onBlur={e => e.target.style.borderColor = T.cardBorder}
+                  />
+                </div>
+              ))}
+
+              <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:20, flexWrap:'wrap' }}>
+                <button
+                  onClick={handleCopy}
+                  style={{
+                    background: copied ? '#059669' : T.primary, color:'#fff', border:'none',
+                    borderRadius:T.radiusPill, padding:'10px 24px', fontWeight:600,
+                    fontSize:14, cursor:'pointer', fontFamily:'Inter', transition:'all 0.2s',
+                  }}
+                >
+                  {copied ? '✓ Copied! Paste into Claude →' : '📋 Copy Blueprint Prompt'}
+                </button>
+                <span style={{ fontSize:12, color:T.textMuted }}>
+                  Works without answers too — but answers produce a more targeted blueprint
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ── Main App ── */
+    function App() {
+      const [expandedId, setExpandedId] = useState(null);
+
+      return (
+        <div style={{ maxWidth:860, margin:'0 auto', padding:'40px 20px 60px' }}>
+
+          {/* ── Header ── */}
+          <div style={{ textAlign:'center', marginBottom:36 }}>
+            <div className="mono" style={{
+              fontSize:12, fontWeight:600, color:T.primary,
+              textTransform:'uppercase', letterSpacing:'2px', marginBottom:8,
+            }}>
+              Plugin Design Report
+            </div>
+            <h1 style={{ fontSize:32, fontWeight:700, color:T.textDark, margin:0, lineHeight:1.2 }}>
+              Your Plugin Design Report
+            </h1>
+            <p style={{ fontSize:16, color:T.textMuted, marginTop:8 }}>
+              Based on Dynamous workflow patterns and integration analysis
+            </p>
+          </div>
+
+          {/* ── Score Dashboard ── */}
+          <div style={{
+            background:'linear-gradient(135deg, #1e1b4b, #312e81, #3730a3)',
+            borderRadius:T.radius, padding:'32px 36px', marginBottom:28,
+            display:'flex', alignItems:'center', gap:32, flexWrap:'wrap',
+            boxShadow:'0 4px 20px rgba(30,27,75,0.3)',
+          }}>
+            <ScoreRing pct={score} />
+            <div style={{ flex:1, minWidth:240 }}>
+              <div style={{ color:'rgba(255,255,255,0.7)', fontSize:13, fontWeight:500, marginBottom:4, fontFamily:"'JetBrains Mono', monospace", textTransform:'uppercase', letterSpacing:'1px' }}>
+                Plugin Optimization Score
+              </div>
+              <div style={{ color:'#fff', fontSize:22, fontWeight:700, marginBottom:6 }}>
+                {counts.optimized} of {total} plugins optimized
+              </div>
+              <div style={{ color:'rgba(255,255,255,0.65)', fontSize:14, lineHeight:1.5, marginBottom:14 }}>
+                You've built a strong foundation with branded content and workflow tooling. The biggest gains are in orchestration, client delivery, and growth automation.
+              </div>
+              <div style={{ display:'flex', gap:20, flexWrap:'wrap' }}>
+                {Object.entries(counts).map(([cat, n]) => (
+                  <div key={cat} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ width:8, height:8, borderRadius:'50%', background:CAT[cat].dot }} />
+                    <span style={{ color:'rgba(255,255,255,0.8)', fontSize:13 }}>{CAT[cat].label}: {n}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Personalized Commentary ── */}
+          <div style={{
+            background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:T.radius,
+            padding:'28px 32px', marginBottom:28, boxShadow:T.shadow,
+          }}>
+            {/* Strengths */}
+            <div style={{ marginBottom:20 }}>
+              <span style={{
+                display:'inline-block', fontSize:11, fontWeight:600, color:'#059669',
+                background:'#ecfdf5', borderRadius:T.radiusPill, padding:'3px 12px',
+                fontFamily:"'JetBrains Mono', monospace", textTransform:'uppercase',
+                letterSpacing:'0.5px', marginBottom:8,
+              }}>Your Strengths</span>
+              <p style={{ fontSize:14, color:T.textDark, lineHeight:1.7 }}>
+                Your Second Brain Skills suite is genuinely impressive — the PPTX Generator, Remotion Video Creator, and Brand Voice Generator form a cohesive content production system with Dynamous branding baked in at every level. The Skill Creator + SOP Creator + Plugin Design Report combo means you can identify, design, build, and document new workflows in a single loop. Most people have zero plugins; you have seven production-quality skills with progressive disclosure and modular architecture.
+              </p>
+            </div>
+
+            {/* Opportunities */}
+            <div style={{ marginBottom:20 }}>
+              <span style={{
+                display:'inline-block', fontSize:11, fontWeight:600, color:'#d97706',
+                background:'#fffbeb', borderRadius:T.radiusPill, padding:'3px 12px',
+                fontFamily:"'JetBrains Mono', monospace", textTransform:'uppercase',
+                letterSpacing:'0.5px', marginBottom:8,
+              }}>Opportunities</span>
+              <p style={{ fontSize:14, color:T.textDark, lineHeight:1.7 }}>
+                Your biggest gap is orchestration — you have individual content tools but no pipeline connecting ideation → script → slides → video → publish → distribute as a single flow. That's ~3–5 hours/week in manual handoffs. You're also building hundreds of agents for clients without a scaffolding system, which means repeating boilerplate setup on every project. And your #1 teaching topic — context engineering — has no structured reference library, so you're pulling patterns from memory instead of a searchable vault.
+              </p>
+            </div>
+
+            {/* Bottom Line */}
+            <div style={{
+              fontSize:15, fontWeight:700, color:T.primary, lineHeight:1.6,
+              borderTop:`1px solid ${T.cardBorder}`, paddingTop:16,
+            }}>
+              ⚡ Build the Content Pipeline Orchestrator first — it wires your existing skills into one flow and eliminates the most manual handoffs in your weekly workflow.
+            </div>
+          </div>
+
+          {/* ── Instruction Banner ── */}
+          <div style={{
+            background:T.primaryLight, borderRadius:T.radius, padding:'16px 24px',
+            marginBottom:28, display:'flex', gap:12, alignItems:'flex-start',
+            border:'1px solid #c7d2fe',
+          }}>
+            <span style={{ fontSize:20, lineHeight:1 }}>💡</span>
+            <p style={{ fontSize:13, color:'#4338ca', lineHeight:1.6, margin:0 }}>
+              Click <strong>Design →</strong> to answer quick questions about your requirements, then copy a ready-made prompt. Paste it into a new Claude chat to get a complete plugin blueprint with architecture, code structure, and deployment plan.
+            </p>
+          </div>
+
+          {/* ── Plugin Cards ── */}
+          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+            {PLUGINS.map(p => (
+              <PluginCard
+                key={p.id}
+                plugin={p}
+                isExpanded={expandedId === p.id}
+                onToggle={() => setExpandedId(prev => prev === p.id ? null : p.id)}
+              />
+            ))}
+          </div>
+
+          {/* ── Footer ── */}
+          <div style={{
+            textAlign:'center', marginTop:32, padding:'16px',
+            fontSize:13, color:T.textMuted, lineHeight:1.6,
+          }}>
+            Plugins are ranked by estimated weekly impact. Build the top-scoring ones first for maximum ROI.
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
